@@ -36,7 +36,8 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 add_executable (pico_ultrasonic 
 		main.c
-		logic_analyzer.c)
+		logic_analyzer.c
+		ultrasonic_distance.c)
 
 # enable usb output, disable uart output
 pico_enable_stdio_usb(pico_ultrasonic 1)

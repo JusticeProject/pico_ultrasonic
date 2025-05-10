@@ -3,6 +3,7 @@
 #include <string.h>
 #include "pico/stdlib.h"
 
+#include "ultrasonic_distance.h"
 #include "logic_analyzer.h"
 
 //************************************************************************************************************
