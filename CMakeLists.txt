@@ -23,7 +23,7 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-set(PICO_BOARD pico_w CACHE STRING "Board type")
+set(PICO_BOARD pico CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
@@ -35,9 +35,8 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 add_executable (pico_ultrasonic 
-		main.c
-		logic_analyzer.c
-		ultrasonic_distance.c)
+				main.c
+				ultrasonic_distance.c)
 
 # enable usb output, disable uart output
 pico_enable_stdio_usb(pico_ultrasonic 1)
@@ -50,8 +49,7 @@ pico_generate_pio_header(pico_ultrasonic ${CMAKE_CURRENT_LIST_DIR}/ultrasonic_di
 # link the executable using the IR transmit and receive libraries
 target_link_libraries(pico_ultrasonic PRIVATE
   			pico_stdlib
-  			hardware_pio
-			hardware_dma)
+  			hardware_pio)
 
 pico_add_extra_outputs(pico_ultrasonic)
 

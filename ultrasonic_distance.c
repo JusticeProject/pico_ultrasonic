@@ -6,7 +6,7 @@
 
 //*************************************************************************************************
 
-// Uses the HC-SR04 ultrasonic distance sensor
+// Uses the HC-SR04 ultrasonic distance sensor which can run on 3.3V
 
 static uint trigger_pin;
 static uint echo_pin;
@@ -17,7 +17,7 @@ static uint offset;
 
 //*************************************************************************************************
 
-bool ultrasonic_distance_init_gpio(uint pin_base)
+bool ultrasonic_init_bit_bang(uint pin_base)
 {
     trigger_pin = pin_base;
     echo_pin = pin_base + 1;
@@ -37,7 +37,7 @@ bool ultrasonic_distance_init_gpio(uint pin_base)
 
 //*************************************************************************************************
 
-void ultrasonic_start_measure_gpio()
+void ultrasonic_start_measure_bit_bang()
 {
     gpio_put(trigger_pin, false);
     sleep_ms(1000);
@@ -49,7 +49,7 @@ void ultrasonic_start_measure_gpio()
 
 //*************************************************************************************************
 
-float ultrasonic_get_distance_gpio()
+float ultrasonic_get_distance_bit_bang()
 {
     // while echo pin is low
     while (!gpio_get(echo_pin))
@@ -74,6 +74,8 @@ float ultrasonic_get_distance_gpio()
     return diff_us / 58.0f;
 }
 
+//*************************************************************************************************
+//*************************************************************************************************
 //*************************************************************************************************
 
 bool ultrasonic_distance_init_pio(uint pin_base)
