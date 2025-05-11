@@ -26,5 +26,4 @@ timed_out:
 	mov isr, y
 	push
 
-	wait 0 pin ECHO_INPUT_PIN	; just in case
 .wrap
