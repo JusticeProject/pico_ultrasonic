@@ -1,6 +1,6 @@
 .program ultrasonic_distance
 
-; No clock divider, so each instruction is 8ns.
+; Clock divider is 1.0 so each instruction is 8ns (125MHz)
 
 ; The system will put this value in the Tx FIFO which we grab with the pull instruction.
 ; We want the trigger pulse to be high for 10us.
@@ -13,8 +13,8 @@
 .define ECHO_INPUT_PIN 0
 
 .wrap_target
-	pull block 					; wait for system to put the value in the FIFO, osr now has 1248
-	mov y, osr					; put 1248 in the y register, y is used for the loop counter
+	pull block 					; Wait for system to put the value in the FIFO, osr now has 1248.
+	mov y, osr					; Put 1248 in the y register, y is used for the loop counter.
 
 	set pins, 1					; trigger pin is now high for 1 instruction
 still_triggering:
@@ -26,17 +26,19 @@ still_triggering:
 
 	set pins, 0					; trigger pin is now low
 	
-	wait 1 pin ECHO_INPUT_PIN	; wait for start of echo pulse (wait for rising edge)
+	wait 1 pin ECHO_INPUT_PIN	; Wait for start of echo pulse (wait for rising edge).
 
-echo_still_high:
-	jmp y-- decrement_done
-	jmp timed_out
+echo_still_high:				; The loop here normally executes 2 instructions, thus each iteration of the loop is 16ns.
+	jmp y-- decrement_done		; Decrement the counter in y, then normally we jump over the next instruction, unless y has decremented all the way to 0...
+	jmp timed_out				; ...unlikely we would ever get here. If we do, y was 0 then decremented to 0xFFFFFFFF. The system can check for this value.
 decrement_done:
-	jmp pin echo_still_high
+	jmp pin echo_still_high		; The 2nd main instruction in the loop. If echo is still high then loop again, otherwise continue to below.
 
 echo_low:
 timed_out:
-	mov isr, y
-	push
+	mov isr, y					; Whether the echo pulse is done or we timed out, move the counter in y to the input shift register.
+	push						; Push the counter in the input shift register to the Rx FIFO so the system can grab it and do the calculation.
+								; Ex: If counter is 0xFFFFFFFE then the loop ran 1 time. In that case 0xFFFFFFFF - 0xFFFFFFFE = 1 loop.
+								; Num loops * 16ns/loop (2 instructions in loop) + 8ns (wait instruction before loop) = total time for echo pulse.
 
 .wrap
