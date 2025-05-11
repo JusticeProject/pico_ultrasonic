@@ -53,7 +53,8 @@ uint16_t getShortIntFromUser()
 int main() {
     stdio_init_all();
 
-    ultrasonic_distance_init_gpio(ULTRASONIC_GPIO_PIN_BASE);
+    //ultrasonic_distance_init_gpio(ULTRASONIC_GPIO_PIN_BASE);
+    ultrasonic_distance_init_pio(ULTRASONIC_GPIO_PIN_BASE);
 
     bool trigger_logic_high = false;
     uint16_t num_pins = 1;
@@ -74,8 +75,12 @@ int main() {
         }
         else if ('q' == c)
         {
-            ultrasonic_start_measure_gpio();
-            float value = ultrasonic_get_distance_gpio();
+            //ultrasonic_start_measure_gpio();
+            //float value = ultrasonic_get_distance_gpio();
+            //printf("result = %f\n", value);
+
+            ultrasonic_start_measure_pio();
+            float value = ultrasonic_get_distance_pio();
             printf("result = %f\n", value);
         }
         else if ('c' == c)

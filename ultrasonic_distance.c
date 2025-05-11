@@ -89,15 +89,24 @@ bool ultrasonic_distance_init_pio(uint pin_base)
 
     gpio_disable_pulls(echo_pin);
 
-    pio_gpio_init(pio, trigger_pin); // only needed for outputs
-
+    pio_gpio_init(pio, trigger_pin);
+    pio_gpio_init(pio, echo_pin);
+    
     pio_sm_set_consecutive_pindirs(pio, sm, trigger_pin, 1, true);
     pio_sm_set_consecutive_pindirs(pio, sm, echo_pin, 1, false);
+    pio_sm_set_in_pins(pio, sm, echo_pin); // TODO: needed?
 
     pio_sm_config c = ultrasonic_distance_program_get_default_config(offset);
+    
     sm_config_set_set_pins(&c, trigger_pin, 1);
+    sm_config_set_out_pin_base(&c, trigger_pin); // TODO: needed?
+    sm_config_set_out_pin_count(&c, 1); // TODO: needed?
+
     sm_config_set_jmp_pin(&c, echo_pin);
-    sm_config_set_clkdiv(&c, 125.0f);
+    sm_config_set_in_pin_base(&c, echo_pin);
+    sm_config_set_in_pin_count(&c, 1);
+
+    sm_config_set_clkdiv(&c, 1.0f);
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_NONE);
     pio_sm_init(pio, sm, offset, &c);
     pio_sm_set_enabled(pio, sm, true);
@@ -117,6 +126,9 @@ void ultrasonic_start_measure_pio()
 float ultrasonic_get_distance_pio()
 {
     uint32_t cycles = pio_sm_get_blocking(pio, sm);
-    //return 0xFFFFFFFF - cycles;
-    return cycles;
+    printf("Rx FIFO had %u (0x%x)\n", cycles, cycles);
+    uint64_t ns = (0xFFFFFFFF - cycles) * 16 + 8;
+    float us = ns / 1000.0f;
+    float cm = us / 58.0f;
+    return cm;
 }

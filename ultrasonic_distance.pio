@@ -1,18 +1,30 @@
 .program ultrasonic_distance
 
-
-; trigger pin: GPIO 2 as base pin, output, default output of 0, it's a set pin
-; echo pin: GPIO 3, input, no pulls, it's a jmp pin
-; gpio_init and pio_gpio_init
-
 .define PUBLIC TRIGGER_PULSE_CYCLES 1248
+.define ECHO_INPUT_PIN 0 ; echo pin is the first of the input pins
 
 .wrap_target
 	pull block ; wait for cmd to start, osr now has 1248
+	mov y, osr
 
-	set pins, 1	[9]				; trigger pin is now high
+	set pins, 1					; trigger pin is now high
+still_triggering:
+	jmp y-- still_triggering
+
 	set pins, 0					; trigger pin is now low
 	
-    mov isr, osr
-    push
+	wait 1 pin ECHO_INPUT_PIN	
+
+echo_still_high:
+	jmp y-- decrement_done
+	jmp timed_out
+decrement_done:
+	jmp pin echo_still_high
+
+echo_low:
+timed_out:
+	mov isr, y
+	push
+
+	wait 0 pin ECHO_INPUT_PIN	; just in case
 .wrap
