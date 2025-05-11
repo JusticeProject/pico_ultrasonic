@@ -14,18 +14,29 @@
 
 // Uncomment the following line if you want to use Bit Banging. Comment out the following line
 // if you want to use PIO.
-#define USE_BIT_BANG 1
+//#define USE_BIT_BANG 1
 
 //************************************************************************************************************
 
 int main() {
     stdio_init_all();
 
+    bool init_success = false;
+
     #ifdef USE_BIT_BANG
-        ultrasonic_init_bit_bang(ULTRASONIC_GPIO_PIN_BASE);
+        init_success = ultrasonic_init_bit_bang(ULTRASONIC_GPIO_PIN_BASE);
     #else
-        ultrasonic_distance_init_pio(ULTRASONIC_GPIO_PIN_BASE);
+        init_success = ultrasonic_distance_init_pio(ULTRASONIC_GPIO_PIN_BASE);
     #endif
+
+    if (!init_success)
+    {
+        while (true)
+        {
+            printf("Could not init ultrasonic distance sensor\n");
+            sleep_ms(2000);
+        }
+    }
     
     while (true)
     {

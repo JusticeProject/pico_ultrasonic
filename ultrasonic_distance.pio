@@ -1,19 +1,32 @@
 .program ultrasonic_distance
 
+; No clock divider, so each instruction is 8ns.
+
+; The system will put this value in the Tx FIFO which we grab with the pull instruction.
+; We want the trigger pulse to be high for 10us.
+; 1250 instructions * 8ns/instr = 10us.
+; We define it to be 1248 because setting the loop counter to 1248 means the loop will run
+; 1249 times. Then add 1 for the set instruction (before the loop) and that gives us 1250.
 .define PUBLIC TRIGGER_PULSE_CYCLES 1248
-.define ECHO_INPUT_PIN 0 ; echo pin is the first of the input pins
+
+; echo pin is the first of the input pins
+.define ECHO_INPUT_PIN 0
 
 .wrap_target
-	pull block ; wait for cmd to start, osr now has 1248
-	mov y, osr
+	pull block 					; wait for system to put the value in the FIFO, osr now has 1248
+	mov y, osr					; put 1248 in the y register, y is used for the loop counter
 
-	set pins, 1					; trigger pin is now high
+	set pins, 1					; trigger pin is now high for 1 instruction
 still_triggering:
-	jmp y-- still_triggering
+	jmp y-- still_triggering	; Trigger pin will still be high for 1249 times through the loop.
+								; It jumps to beginning of loop if y!=0. It decrements y after it checks for 0;
+								; This means that on the final pass through the loop, y was decremented from 0
+								; to 0xFFFFFFFF. We will use this value of y in the next loop. We count down from
+								; 0xFFFFFFFF while measuring the echo pulse width.
 
 	set pins, 0					; trigger pin is now low
 	
-	wait 1 pin ECHO_INPUT_PIN	
+	wait 1 pin ECHO_INPUT_PIN	; wait for start of echo pulse (wait for rising edge)
 
 echo_still_high:
 	jmp y-- decrement_done
