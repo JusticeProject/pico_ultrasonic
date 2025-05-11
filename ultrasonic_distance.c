@@ -37,41 +37,45 @@ bool ultrasonic_init_bit_bang(uint pin_base)
 
 //*************************************************************************************************
 
-void ultrasonic_start_measure_bit_bang()
+float ultrasonic_get_distance_bit_bang()
 {
+    // keep trigger low for a short time to get ready for the next measurement
     gpio_put(trigger_pin, false);
-    sleep_ms(1000);
+    sleep_ms(100);
 
+    // pulse the trigger pin high for 10us
     gpio_put(trigger_pin, true);
     sleep_us(10);
     gpio_put(trigger_pin, false);
-}
 
-//*************************************************************************************************
-
-float ultrasonic_get_distance_bit_bang()
-{
-    // while echo pin is low
+    // while echo pin is low, we are waiting for echo pin to go high
     while (!gpio_get(echo_pin))
     {
         tight_loop_contents();
     }
 
+    // echo pin is now high, grab the time
     absolute_time_t time1 = get_absolute_time();
-    printf("echo not low anymore\n");
+    //printf("echo not low anymore\n");
 
-    // while echo pin is high
+    // while echo pin is high, we are waiting for echo pin to go low
     while (gpio_get(echo_pin))
     {
         tight_loop_contents();
     }
 
+    // echo pin is now low, grab the time
     absolute_time_t time2 = get_absolute_time();
-    printf("echo not high anymore\n");
+    //printf("echo not high anymore\n");
 
     int64_t diff_us = absolute_time_diff_us(time1, time2);
 
-    return diff_us / 58.0f;
+    // The speed of sound is about 343 m/s.
+    // (343 m/s) * (100cm / 1m) * (1s / 1,000,000us) = 0.0343 cm/us
+    // diff_us * 0.0343 cm/us gives the total roundtrip distance traveled in cm.
+    // We want half of that distance.
+    // Thus, diff_us * 0.0343 / 2 gives the distance in cm.
+    return diff_us * 0.01715;
 }
 
 //*************************************************************************************************

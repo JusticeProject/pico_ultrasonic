@@ -6,7 +6,6 @@
 // Bit-bang API:
 // the trigger and echo pins should be consecutive, trigger pin first then echo pin second
 bool ultrasonic_init_bit_bang(uint pin_base);
-void ultrasonic_start_measure_bit_bang();
 float ultrasonic_get_distance_bit_bang();
 
 // PIO API:

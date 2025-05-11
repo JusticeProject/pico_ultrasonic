@@ -12,13 +12,20 @@
 // GPIO 3 = echo
 #define ULTRASONIC_GPIO_PIN_BASE 2
 
+// Uncomment the following line if you want to use Bit Banging. Comment out the following line
+// if you want to use PIO.
+#define USE_BIT_BANG 1
+
 //************************************************************************************************************
 
 int main() {
     stdio_init_all();
 
-    //ultrasonic_init_bit_bang(ULTRASONIC_GPIO_PIN_BASE);
-    ultrasonic_distance_init_pio(ULTRASONIC_GPIO_PIN_BASE);
+    #ifdef USE_BIT_BANG
+        ultrasonic_init_bit_bang(ULTRASONIC_GPIO_PIN_BASE);
+    #else
+        ultrasonic_distance_init_pio(ULTRASONIC_GPIO_PIN_BASE);
+    #endif
     
     while (true)
     {
@@ -28,22 +35,30 @@ int main() {
 
         if ('h' == c)
         {
+            printf("Running on %s\n", PICO_BOARD);
+            #ifdef USE_BIT_BANG
+                printf("Using Bit-Bang API\n");
+            #else
+                printf("Using PIO API\n");
+            #endif
+            printf("\n");
+
             // TODO: update when new commands are added
-            printf("\n\n");
-            printf("running on %s\n", PICO_BOARD);
+            printf("Menu:\n");
             printf("q = query distance\n");
         }
         else if ('q' == c)
         {
             printf("starting to query for distance\n");
 
-            //ultrasonic_start_measure_gpio();
-            //float value = ultrasonic_get_distance_gpio();
-            //printf("result = %f\n", value);
-
-            ultrasonic_start_measure_pio();
-            float value = ultrasonic_get_distance_pio();
-            printf("result = %f\n", value);
+            #ifdef USE_BIT_BANG
+                float value = ultrasonic_get_distance_bit_bang();
+                printf("result = %f\n", value);
+            #else
+                ultrasonic_start_measure_pio();
+                float value = ultrasonic_get_distance_pio();
+                printf("result = %f\n", value);
+            #endif
         }
         else
         {
