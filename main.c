@@ -9,6 +9,7 @@
 //************************************************************************************************************
 
 #define CAPTURE_GPIO_PIN_BASE 0
+#define ULTRASONIC_GPIO_PIN_BASE 0
 
 // global variables
 float clk_div = 1.0f;
@@ -52,6 +53,8 @@ uint16_t getShortIntFromUser()
 int main() {
     stdio_init_all();
 
+    ultrasonic_distance_init_gpio(ULTRASONIC_GPIO_PIN_BASE);
+
     bool trigger_logic_high = false;
     uint16_t num_pins = 1;
     
@@ -68,6 +71,12 @@ int main() {
             printf("p = set number of pins to capture (default is 1)\n");
             printf("o = start capture when logic 1 is detected\n");
             printf("z = start capture when logic 0 is detected (default)\n");
+        }
+        else if ('q' == c)
+        {
+            ultrasonic_start_measure_gpio();
+            float value = ultrasonic_get_distance_gpio();
+            printf("result = %f\n", value);
         }
         else if ('c' == c)
         {
