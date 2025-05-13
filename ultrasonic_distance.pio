@@ -12,9 +12,11 @@
 ; echo pin is the first of the input pins
 .define ECHO_INPUT_PIN 0
 
+PUBLIC start:
+	pull block 					; Wait for system to put the value in the FIFO. osr will always be 1248 from now on.
+
 .wrap_target
-	pull block 					; Wait for system to put the value in the FIFO, osr now has 1248.
-	mov y, osr					; Put 1248 in the y register, y is used for the loop counter.
+	mov y, osr					; Reload 1248 into the y register, y is used for the loop counter.
 
 	set pins, 1					; trigger pin is now high for 1 instruction
 still_triggering:
@@ -30,15 +32,33 @@ still_triggering:
 
 echo_still_high:				; The loop here normally executes 2 instructions, thus each iteration of the loop is 16ns.
 	jmp y-- decrement_done		; Decrement the counter in y, then normally we jump over the next instruction, unless y has decremented all the way to 0...
-	jmp timed_out				; ...unlikely we would ever get here. If we do, y was 0 then decremented to 0xFFFFFFFF. The system can check for this value.
+	jmp timed_out				; ...unlikely we would ever get here. If we do, y was 0 then decremented to 0xFFFFFFFF. The system can check for this.
 decrement_done:
 	jmp pin echo_still_high		; The 2nd main instruction in the loop. If echo is still high then loop again, otherwise continue to below.
 
 echo_low:
 timed_out:
-	mov isr, y					; Whether the echo pulse is done or we timed out, move the counter in y to the input shift register.
-	push						; Push the counter in the input shift register to the Rx FIFO so the system can grab it and do the calculation.
-								; Ex: If counter is 0xFFFFFFFE then the loop ran 1 time. In that case 0xFFFFFFFF - 0xFFFFFFFE = 1 loop.
+	mov isr, ~y					; Whether the echo pulse is done or timed out, move the complement of the y counter to the input shift register.
+	push						; Push the complemented counter in isr to the Rx FIFO so the system can grab it and do the calculation.
+								; Ex: If the y counter is 0xFFFFFFFE then the loop ran 1 time. Taking the complement gives 0x00000001.
 								; Num loops * 16ns/loop (2 instructions in loop) + 8ns (wait instruction before loop) = total time for echo pulse.
+
+
+								; The device needs a delay before taking another measurement.
+								; Inner loop does 1249 iterations, each iteration is 160 instructions.
+								; 1249 iterations * 160 instr/iteration = 199840 instructions.
+								; 199840 instructions * 8ns/instr = ~1.6ms delay (ignoring the mov instr)
+								; Outer loop runs 32 times, 1.6ms * 32 = ~51ms
+delay:
+	set x, 31 [31]
+outer_delay:
+	mov y, osr [31]
+inner_delay:
+	nop [31]
+	nop [31]
+	nop [31]
+	nop [31]
+	jmp y-- inner_delay [31]
+	jmp x-- outer_delay [31]
 
 .wrap

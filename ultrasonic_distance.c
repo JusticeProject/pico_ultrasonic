@@ -15,6 +15,9 @@ static PIO pio;
 static uint sm;
 static uint offset;
 
+static int8_t pio_irq = 0;
+static uint irq_index = 0;
+
 //*************************************************************************************************
 
 bool ultrasonic_init_bit_bang(uint pin_base)
@@ -82,7 +85,7 @@ float ultrasonic_get_distance_bit_bang()
 //*************************************************************************************************
 //*************************************************************************************************
 
-bool ultrasonic_distance_init_pio(uint pin_base)
+bool ultrasonic_distance_init_pio(uint pin_base, irq_handler_t handler)
 {
     // trigger and echo GPIOs should be consecutive
     trigger_pin = pin_base;
@@ -93,6 +96,8 @@ bool ultrasonic_distance_init_pio(uint pin_base)
     {
         return false;
     }
+    printf("pio0 = %p, pio1 = %p\n", pio_get_instance(0), pio_get_instance(1));
+    printf("pio = %p, sm = %u, offset = %u\n", pio, sm, offset);
 
     // don't want pull-up or pull-down on the input, datasheet for sensor says it is TTL
     gpio_disable_pulls(echo_pin);
@@ -119,17 +124,43 @@ bool ultrasonic_distance_init_pio(uint pin_base)
     // keep size of 4 for each Rx and Tx buffers
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_NONE);
 
+    // start the state machine running
     pio_sm_init(pio, sm, offset, &c);
     pio_sm_set_enabled(pio, sm, true);
+
+    // Set up the interrupt for each time a new measurement is ready
+    // Find a free irq, typically it is PIO0_IRQ_0 which is irq 7
+    pio_irq = pio_get_irq_num(pio, 0);
+    if (irq_get_exclusive_handler(pio_irq))
+    {
+        // if we can't use irq 7 then try 8
+        pio_irq++;
+        if (irq_get_exclusive_handler(pio_irq))
+        {
+            printf("irqs not available\n");
+            return false;
+        }
+    }
+    printf("pio_irq = %d\n", pio_irq);
+
+    irq_add_shared_handler(pio_irq, handler, PICO_SHARED_IRQ_HANDLER_DEFAULT_ORDER_PRIORITY);
+    irq_set_enabled(pio_irq, true);
+    // index should be 0 or 1, there are only two irq's available for a given PIO
+    irq_index = pio_irq - pio_get_irq_num(pio, 0);
+    printf("irq_index = %u\n", irq_index);
+    pio_set_irqn_source_enabled(pio, irq_index, pio_get_rx_fifo_not_empty_interrupt_source(sm), true);
+
+    printf("interrupts ON\n");
 
     return true;
 }
 
 //*************************************************************************************************
 
-void ultrasonic_start_measure_pio()
+void ultrasonic_start_measuring_pio()
 {
-    // initialize the loop counter that the PIO uses, this is defined in the .pio file
+    // Initialize the loop counter that the PIO uses, this is defined in the .pio file.
+    // From here the .pio will constantly loop and put new data in the Rx FIFO.
     pio_sm_put(pio, sm, ultrasonic_distance_TRIGGER_PULSE_CYCLES);
 }
 
@@ -137,17 +168,24 @@ void ultrasonic_start_measure_pio()
 
 float ultrasonic_get_distance_pio()
 {
-    uint32_t loop_counter = pio_sm_get_blocking(pio, sm);
-    printf("Rx FIFO had %u (0x%x)\n", loop_counter, loop_counter);
+    if (pio_sm_is_rx_fifo_empty(pio, sm))
+    {
+        uint8_t pc = pio_sm_get_pc(pio, sm);
+        printf("No data in Rx FIFO. Program counter at %u with offset %u\n", pc, offset);
+        return 0.0f;
+    }
+    else
+    {
+        uint32_t loop_counter = pio_sm_get(pio, sm);
+        //printf("Rx FIFO had %u (0x%x)\n", loop_counter, loop_counter);
 
-    // The PIO counted down from 0xFFFFFFFF while it was looking at the echo pulse.
-    // The difference between 0xFFFFFFFF and loop_counter is the number of times it ran
-    // through the loop. Each loop is 2 assembly instructions (each instruction is 8ns).
-    // We will add an additional 1 instruction (8ns) for the wait instruction before the loop.
-    uint64_t ns = (0xFFFFFFFF - loop_counter) * 16 + 8;
-    float us = ns / 1000.0f;
+        // Each loop is in the .pio is 2 assembly instructions (each instruction is 8ns).
+        // We will add an additional 1 instruction (8ns) for the wait instruction before the loop.
+        uint64_t ns = loop_counter * 16 + 8;
+        float us = ns / 1000.0f;
 
-    // See notes above in the Bit Bang API for the conversion formula.
-    float cm = us * 0.01715;
-    return cm;
+        // See notes above in the Bit Bang API for the conversion formula.
+        float cm = us * 0.01715;
+        return cm;
+    }
 }
